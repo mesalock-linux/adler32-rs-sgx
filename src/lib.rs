@@ -9,6 +9,14 @@
 //! the zlib implementation.
 
 #![forbid(unsafe_code)]
+#![cfg_attr(all(feature = "mesalock_sgx",
+                not(target_env = "sgx")), no_std)]
+#![cfg_attr(all(target_env = "sgx", target_vendor = "mesalock"), feature(rustc_private))]
+
+#[cfg(all(feature = "mesalock_sgx", not(target_env = "sgx")))]
+#[macro_use]
+extern crate sgx_tstd as std;
+use std::prelude::v1::*;
 
 #[cfg(test)]
 extern crate rand;
@@ -196,10 +204,10 @@ impl RollingAdler32 {
 pub fn adler32<R: io::Read>(mut reader: R) -> io::Result<u32> {
     let mut hash = RollingAdler32::new();
     let mut buffer = [0u8; NMAX];
-    let mut read = try!(reader.read(&mut buffer));
+    let mut read = reader.read(&mut buffer)?;
     while read > 0 {
         hash.update_buffer(&buffer[..read]);
-        read = try!(reader.read(&mut buffer));
+        read = reader.read(&mut buffer)?;
     }
     Ok(hash.hash())
 }
@@ -217,7 +225,7 @@ mod test {
         let mut b: u32 = 0;
 
         for byte in reader.bytes() {
-            let byte = try!(byte) as u32;
+            let byte = byte? as u32;
             a = (a + byte) % BASE;
             b = (b + a) % BASE;
         }
